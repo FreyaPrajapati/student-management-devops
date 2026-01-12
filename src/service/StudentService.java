@@ -3,12 +3,11 @@ package service;
 import model.Student;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class StudentService {
-
     private final List<Student> students = new ArrayList<>();
 
-    // Add student only if roll number is unique
     public boolean addStudent(Student student) {
         if (isRollExists(student.getRollNo())) {
             return false;
@@ -17,14 +16,21 @@ public class StudentService {
         return true;
     }
 
-    // Remove student by roll number (business logic)
-    public boolean removeStudentByRoll(String rollNo) {
-        return students.removeIf(
-                student -> student.getRollNo().equals(rollNo)
-        );
+    // New Search Logic
+    public List<Student> searchStudents(String query) {
+        if (query == null || query.isEmpty()) {
+            return getStudents();
+        }
+        return students.stream()
+                .filter(s -> s.getName().toLowerCase().contains(query.toLowerCase()) || 
+                             s.getRollNo().contains(query))
+                .collect(Collectors.toList());
     }
 
-    // Keep old method for compatibility
+    public boolean removeStudentByRoll(String rollNo) {
+        return students.removeIf(student -> student.getRollNo().equals(rollNo));
+    }
+
     public void removeStudent(int index) {
         if (index >= 0 && index < students.size()) {
             students.remove(index);
@@ -32,15 +38,10 @@ public class StudentService {
     }
 
     public List<Student> getStudents() {
-        return new ArrayList<>(students); // defensive copy
+        return new ArrayList<>(students);
     }
 
     private boolean isRollExists(String rollNo) {
-        for (Student student : students) {
-            if (student.getRollNo().equals(rollNo)) {
-                return true;
-            }
-        }
-        return false;
+        return students.stream().anyMatch(s -> s.getRollNo().equals(rollNo));
     }
 }
