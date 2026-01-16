@@ -94,9 +94,9 @@ pipeline {
 
         always {
             echo "📌 Cleaning docker containers (safe)"
-            bat '''
-            docker rm -f %CONTAINER_NAME% >nul 2>&1 || echo No container to remove
-            '''
+            script {
+                bat(returnStatus: true, script: "docker rm -f %CONTAINER_NAME%")
+            }
         }
     }
 }
