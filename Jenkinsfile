@@ -3,47 +3,18 @@ pipeline {
 
     environment {
         SONAR_TOKEN = credentials('SONAR_TOKEN')
-        SONAR_ORG   = "freyaprajapati"
-        SONAR_KEY   = "FreyaPrajapati_student-management-devops"
-        SONAR_HOST  = "https://sonarcloud.io"
-        SCANNER     = "C:\\Users\\Admin\\sonar-scanner-cli-8.0.1.6346-windows-x64\\sonar-scanner-8.0.1.6346-windows-x64\\bin\\sonar-scanner.bat"
-        IMAGE_NAME  = "student-management-app"
-        CONTAINER_NAME = "student-management-container"
     }
 
     stages {
 
-        stage('1) Clean Workspace') {
+        stage('Clone Repository') {
             steps {
-                echo "Cleaning old workspace..."
-                deleteDir()
-            }
-        }
-
-        stage('2) Clone Repository') {
-            steps {
-                echo "Cloning GitHub repository..."
                 git branch: 'main',
                     url: 'https://github.com/FreyaPrajapati/student-management-devops.git'
             }
         }
 
-        stage('3) Verify Tools') {
-            steps {
-                bat '''
-                echo ===== Java Version =====
-                java -version
-
-                echo ===== Docker Version =====
-                docker --version
-
-                echo ===== Git Version =====
-                git --version
-                '''
-            }
-        }
-
-        stage('4) Build / Compile Java Project') {
+        stage('Build Java') {
             steps {
                 bat '''
                 echo ===== Cleaning build folder =====
@@ -58,45 +29,64 @@ pipeline {
             }
         }
 
-        stage('5) SonarCloud Analysis') {
+        stage('Debug Workspace') {
             steps {
-                bat """
-                echo ===== Running SonarCloud Analysis =====
-                \"${SCANNER}\" ^
-                -Dsonar.organization=${SONAR_ORG} ^
-                -Dsonar.projectKey=${SONAR_KEY} ^
-                -Dsonar.sources=src ^
-                -Dsonar.java.binaries=build ^
-                -Dsonar.host.url=${SONAR_HOST} ^
-                -Dsonar.token=%SONAR_TOKEN%
-                """
+                bat '''
+                echo ===== CURRENT FILES =====
+                dir
+                echo ===== BUILD CONTENT =====
+                dir build
+                '''
             }
         }
 
-        stage('6) Docker Build Image') {
+        stage('JUnit Testing') {
             steps {
                 bat '''
-                echo ===== Building Docker Image =====
-                docker build -t %IMAGE_NAME% .
+                echo ===== Running JUnit Tests =====
+
+                echo ===== Compiling Test File =====
+                javac -cp "lib\\junit-4.13.2.jar;lib\\hamcrest-core-1.3.jar;build" ^
+                -d build src\\test\\StudentServiceTest.java
+
+                echo ===== Running JUnitCore =====
+                java -cp "build;lib\\junit-4.13.2.jar;lib\\hamcrest-core-1.3.jar" ^
+                org.junit.runner.JUnitCore test.StudentServiceTest
+                '''
+            }
+        }
+
+        stage('SonarCloud Analysis') {
+            steps {
+                bat '''
+                echo ===== Running SonarCloud Scan =====
+                "C:\\Users\\Admin\\sonar-scanner-cli-8.0.1.6346-windows-x64\\sonar-scanner-8.0.1.6346-windows-x64\\bin\\sonar-scanner.bat" ^
+                -Dsonar.organization=freyaprajapati ^
+                -Dsonar.projectKey=FreyaPrajapati_student-management-devops ^
+                -Dsonar.sources=src ^
+                -Dsonar.java.binaries=build ^
+                -Dsonar.host.url=https://sonarcloud.io ^
+                -Dsonar.token=%SONAR_TOKEN%
+                '''
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                bat '''
+                echo ===== Docker Build =====
+                docker build -t student-management-app .
                 '''
             }
         }
     }
 
     post {
-        success {
-            echo "✅ PIPELINE SUCCESSFUL: Git + Build + Sonar + Docker"
-        }
-
-        failure {
-            echo "❌ PIPELINE FAILED"
-        }
-
         always {
-            echo "📌 Cleaning docker containers (safe)"
-            script {
-                bat(returnStatus: true, script: "docker rm -f %CONTAINER_NAME%")
-            }
+            echo "✅ Pipeline Finished"
+        }
+        failure {
+            echo "❌ Pipeline Failed"
         }
     }
 }
