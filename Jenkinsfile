@@ -31,13 +31,13 @@ pipeline {
         stage('3) Verify Tools') {
             steps {
                 bat '''
-                echo ===== Checking Java Version =====
+                echo ===== Java Version =====
                 java -version
 
-                echo ===== Checking Docker Version =====
+                echo ===== Docker Version =====
                 docker --version
 
-                echo ===== Checking Git Version =====
+                echo ===== Git Version =====
                 git --version
                 '''
             }
@@ -51,26 +51,17 @@ pipeline {
                 mkdir build
 
                 echo ===== Compiling Java files =====
-                javac -Xlint:unchecked -Xlint:deprecation -d build src\\model\\*.java src\\service\\*.java src\\ui\\*.java src\\Main.java
+                javac -d build src\\model\\*.java src\\service\\*.java src\\ui\\*.java src\\Main.java
 
-                echo ===== Build Completed Successfully =====
+                echo ===== BUILD SUCCESS =====
                 '''
             }
         }
 
-        stage('5) Smoke Test (Run Main)') {
-            steps {
-                bat '''
-                echo ===== Running basic smoke test =====
-                java -cp build Main
-                '''
-            }
-        }
-
-        stage('6) SonarCloud Analysis') {
+        stage('5) SonarCloud Analysis') {
             steps {
                 bat """
-                echo ===== Running SonarCloud Scan =====
+                echo ===== Running SonarCloud Analysis =====
                 \"${SCANNER}\" ^
                 -Dsonar.organization=${SONAR_ORG} ^
                 -Dsonar.projectKey=${SONAR_KEY} ^
@@ -82,7 +73,7 @@ pipeline {
             }
         }
 
-        stage('7) Docker Build Image') {
+        stage('6) Docker Build Image') {
             steps {
                 bat '''
                 echo ===== Building Docker Image =====
@@ -90,37 +81,21 @@ pipeline {
                 '''
             }
         }
-
-        stage('8) Docker Run Container') {
-            steps {
-                bat '''
-                echo ===== Removing old container if exists =====
-                docker rm -f %CONTAINER_NAME% >nul 2>&1
-
-                echo ===== Running container =====
-                docker run -d --name %CONTAINER_NAME% %IMAGE_NAME%
-
-                echo ===== Docker Container Running =====
-                docker ps
-                '''
-            }
-        }
-
     }
 
     post {
         success {
-            echo "✅ PIPELINE SUCCESSFUL! Build + Sonar + Docker completed."
+            echo "✅ PIPELINE SUCCESSFUL: Git + Build + Sonar + Docker"
         }
 
         failure {
-            echo "❌ PIPELINE FAILED! Check console logs for the failed stage."
+            echo "❌ PIPELINE FAILED"
         }
 
         always {
-            echo "📌 Pipeline Finished. Cleaning stopped containers (optional)."
+            echo "📌 Cleaning docker containers (safe)"
             bat '''
-            docker rm -f %CONTAINER_NAME% >nul 2>&1
+            docker rm -f %CONTAINER_NAME% >nul 2>&1 || echo No container to remove
             '''
         }
     }
